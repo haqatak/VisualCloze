@@ -7,12 +7,9 @@ import torch.nn.functional as F
 from torchvision import transforms
 from torchvision.transforms.functional import to_pil_image
 from models.sampling import prepare_modified
-from models.util import load_clip, load_t5, load_flow_model, configs
+from models.util import load_clip, load_t5, load_flow_model
 from transport import Sampler, create_transport
 from util.imgproc import to_rgb_if_rgba
-from huggingface_hub import hf_hub_download
-from safetensors.torch import load_file as load_sft
-from models.util import optionally_expand_state_dict
 
 
 def center_crop(image, target_size):
@@ -96,20 +93,8 @@ class VisualClozeModel:
         
         # Initialize model
         print("Initializing model...")
-        self.model = load_flow_model(model_name, lora_rank=self.lora_rank)
+        self.model = load_flow_model(model_name, device=self.device, lora_rank=self.lora_rank)
         
-        # Download checkpoint if necessary
-        ckpt_path = configs[model_name].ckpt_path
-        if ckpt_path is None:
-            print(f"Downloading checkpoint for {model_name}...")
-            ckpt_path = hf_hub_download(configs[model_name].repo_id, configs[model_name].repo_flow)
-
-        # Load checkpoint
-        print(f"Loading checkpoint from {ckpt_path}...")
-        state_dict = load_sft(ckpt_path, device=str(self.device))
-        self.model.load_state_dict(state_dict, strict=False, assign=True)
-        del state_dict
-
         # Initialize VAE
         print("Initializing VAE...")
         vae_device = "cpu" if self.low_vram_mode else self.device
@@ -122,13 +107,6 @@ class VisualClozeModel:
         self.t5 = load_t5(text_encoder_device, max_length=self.max_length)
         self.clip = load_clip(text_encoder_device)
         
-        # Load model weights
-        if model_path is not None:
-            print(f"Loading model weights from {model_path}...")
-            ckpt = torch.load(model_path, map_location=self.device)
-            self.model.load_state_dict(ckpt, strict=False)
-            del ckpt
-
         self.model.eval()
 
         # Initialize sampler

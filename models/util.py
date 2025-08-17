@@ -386,12 +386,35 @@ def load_flow_model(
 ) -> Flux:
     # Loading Flux
     print("Init model")
+    ckpt_path = configs[name].ckpt_path
     lora_path = configs[name].lora_path
-    with torch.device("meta"):
+    if (
+        ckpt_path is None
+        and configs[name].repo_id is not None
+        and configs[name].repo_flow is not None
+        and hf_download
+    ):
+        ckpt_path = hf_hub_download(configs[name].repo_id, configs[name].repo_flow)
+
+    print(f"ckpt_path: {ckpt_path}, lora_path: {lora_path}")
+    with torch.device(device):
         if lora_path is not None:
             model = FluxLoraWrapper(params=configs[name].params, lora_rank=lora_rank, lora_scale=lora_scale).to(torch.bfloat16)
         else:
             model = Flux(configs[name].params).to(torch.bfloat16)
+
+    if ckpt_path is not None:
+        print("Loading checkpoint")
+        sd = load_sft(ckpt_path, device=str(device))
+        model.load_state_dict(sd, strict=False)
+        del sd
+
+    if configs[name].lora_path is not None and os.path.exists(configs[name].lora_path):
+        print("Loading LoRA")
+        lora_sd = load_sft(configs[name].lora_path, device=str(device))
+        # loading the lora params + overwriting scale values in the norms
+        model.load_state_dict(lora_sd, strict=False, assign=True)
+
     return model
 
 
