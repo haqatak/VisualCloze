@@ -7,9 +7,12 @@ import torch.nn.functional as F
 from torchvision import transforms
 from torchvision.transforms.functional import to_pil_image
 from models.sampling import prepare_modified
-from models.util import load_clip, load_t5, load_flow_model
+from models.util import load_clip, load_t5, load_flow_model, configs
 from transport import Sampler, create_transport
 from util.imgproc import to_rgb_if_rgba
+from huggingface_hub import hf_hub_download
+from safetensors.torch import load_file as load_sft
+from models.util import optionally_expand_state_dict
 
 
 def center_crop(image, target_size):
@@ -95,6 +98,19 @@ class VisualClozeModel:
         print("Initializing model...")
         self.model = load_flow_model(model_name, device=self.device, lora_rank=self.lora_rank)
         
+        # Download checkpoint if necessary
+        ckpt_path = configs[model_name].ckpt_path
+        if ckpt_path is None:
+            print(f"Downloading checkpoint for {model_name}...")
+            ckpt_path = hf_hub_download(configs[model_name].repo_id, configs[model_name].repo_flow)
+
+        # Load checkpoint
+        print(f"Loading checkpoint from {ckpt_path}...")
+        state_dict = load_sft(ckpt_path, device=str(self.device))
+        state_dict = optionally_expand_state_dict(self.model, state_dict)
+        self.model.load_state_dict(state_dict, strict=False, assign=True)
+        del state_dict
+
         # Initialize VAE
         print("Initializing VAE...")
         vae_device = "cpu" if self.low_vram_mode else self.device
@@ -115,6 +131,7 @@ class VisualClozeModel:
             del ckpt
 
         self.model.eval().to(self.device, dtype=self.dtype)
+
         # Initialize sampler
         transport = create_transport(
             "Linear",
