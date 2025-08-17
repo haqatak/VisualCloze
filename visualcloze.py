@@ -1,4 +1,3 @@
-
 import random
 from einops import rearrange
 from diffusers.models import AutoencoderKL
@@ -116,7 +115,6 @@ class VisualClozeModel:
             del ckpt
 
         self.model.eval().to(self.device, dtype=self.dtype)
-
         # Initialize sampler
         transport = create_transport(
             "Linear",
