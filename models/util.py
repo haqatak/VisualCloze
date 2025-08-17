@@ -397,7 +397,6 @@ def load_flow_model(
         ckpt_path = hf_hub_download(configs[name].repo_id, configs[name].repo_flow)
 
     print(f"ckpt_path: {ckpt_path}, lora_path: {lora_path}")
-    # with torch.device("meta" if ckpt_path is not None else device):
     if lora_path is not None:
         model = FluxLoraWrapper(params=configs[name].params, lora_rank=lora_rank, lora_scale=lora_scale).to(torch.bfloat16)
     else:
@@ -424,7 +423,7 @@ def load_flow_model(
 
 def load_t5(device: str | torch.device = "cuda", max_length: int = 512) -> HFEmbedder:
     # max length 64, 128, 256 and 512 should work (if your sequence is short enough)
-    return HFEmbedder("google/t5-v1_1-xxl", max_length=max_length, torch_dtype=torch.bfloat16).to(device)
+    return HFEmbedder("t5-large", max_length=max_length, torch_dtype=torch.bfloat16).to(device)
 
 
 def load_clip(device: str | torch.device = "cuda") -> HFEmbedder:
