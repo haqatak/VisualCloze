@@ -96,7 +96,8 @@ class VisualClozeModel:
         
         # Initialize model
         print("Initializing model...")
-        self.model = load_flow_model(model_name, device=self.device, lora_rank=self.lora_rank)
+        self.model = load_flow_model(model_name, device="cpu", lora_rank=self.lora_rank)
+        self.model.to(self.device)
         
         # Download checkpoint if necessary
         ckpt_path = configs[model_name].ckpt_path
@@ -107,8 +108,7 @@ class VisualClozeModel:
         # Load checkpoint
         print(f"Loading checkpoint from {ckpt_path}...")
         state_dict = load_sft(ckpt_path, device=str(self.device))
-        state_dict = optionally_expand_state_dict(self.model, state_dict)
-        self.model.load_state_dict(state_dict, strict=False, assign=True)
+        self.model.load_state_dict(state_dict, strict=False)
         del state_dict
 
         # Initialize VAE
@@ -130,7 +130,7 @@ class VisualClozeModel:
             self.model.load_state_dict(ckpt, strict=False)
             del ckpt
 
-        self.model.eval().to(self.device, dtype=self.dtype)
+        self.model.eval()
 
         # Initialize sampler
         transport = create_transport(

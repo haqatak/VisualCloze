@@ -387,11 +387,10 @@ def load_flow_model(
     # Loading Flux
     print("Init model")
     lora_path = configs[name].lora_path
-    with torch.device("meta"):
-        if lora_path is not None:
-            model = FluxLoraWrapper(params=configs[name].params, lora_rank=lora_rank, lora_scale=lora_scale).to(torch.bfloat16)
-        else:
-            model = Flux(configs[name].params).to(torch.bfloat16)
+    if lora_path is not None:
+        model = FluxLoraWrapper(params=configs[name].params, lora_rank=lora_rank, lora_scale=lora_scale).to(torch.bfloat16)
+    else:
+        model = Flux(configs[name].params).to(torch.bfloat16)
     return model
 
 
